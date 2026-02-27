@@ -1,0 +1,324 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum Role {
+  SUPER_ADMIN
+  BUSINESS_OWNER
+}
+
+enum TokenType {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  GRACE_PERIOD
+  EXPIRED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  SUCCESS
+  FAILED
+  REFUNDED
+  PENDING
+}
+
+// ============================================
+// KULLANICI & DOĞRULAMA
+// ============================================
+
+model User {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  password       String
+  name           String
+  role           Role      @default(BUSINESS_OWNER)
+  emailVerified  Boolean   @default(false)
+  consentGivenAt DateTime?
+
+  business Business?
+  tokens   Token[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+}
+
+model Token {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      TokenType
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ============================================
+// İŞLETME
+// ============================================
+
+model Business {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // İşletme bilgileri
+  name        String
+  slug        String  @unique
+  description String?
+  phone       String?
+  address     String?
+
+  // Vergi bilgileri
+  taxNumber String @unique
+  taxOffice String
+
+  // Menü ayarları
+  defaultLanguage String  @default("tr")
+  menuTemplate    String  @default("classic")
+  isActive        Boolean @default(true)
+
+  // Branding ayarları
+  logoUrl         String?
+  primaryColor    String @default("#000000")
+  secondaryColor  String @default("#666666")
+  backgroundColor String @default("#FFFFFF")
+  fontFamily      String @default("Inter")
+
+  // QR kod ayarları
+  qrUrl          String?
+  qrCustomStyled Boolean @default(false)
+
+  // İlişkiler
+  subscription Subscription?
+  categories   Category[]
+  languages    BusinessLanguage[]
+  payments     Payment[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+}
+
+// ============================================
+// ABONELİK & PAKETLER
+// ============================================
+
+model Plan {
+  id    String  @id @default(cuid())
+  name  String
+  slug  String  @unique
+  price Decimal @db.Decimal(10, 2)
+
+  // Paket özellikleri
+  maxLanguages     Int      @default(1)
+  hasImages        Boolean  @default(false)
+  hasDetailFields  Boolean  @default(false)
+  hasCustomQR      Boolean  @default(false)
+  allowedTemplates String[] @default(["classic"])
+
+  isActive      Boolean        @default(true)
+  subscriptions Subscription[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Subscription {
+  id         String   @id @default(cuid())
+  businessId String   @unique
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  planId     String
+  plan       Plan     @relation(fields: [planId], references: [id])
+
+  status             SubscriptionStatus @default(TRIAL)
+  trialEndsAt        DateTime?
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  graceEndsAt        DateTime?
+  pendingPlanId      String?
+
+  // iyzico
+  iyzicoCardToken   String?
+  iyzicoCardUserKey String?
+
+  history  SubscriptionHistory[]
+  payments Payment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SubscriptionHistory {
+  id             String       @id @default(cuid())
+  subscriptionId String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  previousPlanId String?
+  newPlanId      String
+  previousStatus SubscriptionStatus?
+  newStatus      SubscriptionStatus
+  reason         String?
+
+  createdAt DateTime @default(now())
+
+  @@index([subscriptionId])
+}
+
+// ============================================
+// ÖDEME GEÇMİŞİ
+// ============================================
+
+model Payment {
+  id             String       @id @default(cuid())
+  businessId     String
+  business       Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  subscriptionId String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  amount   Decimal       @db.Decimal(10, 2)
+  currency String        @default("TRY")
+  status   PaymentStatus @default(PENDING)
+
+  // iyzico
+  iyzicoPaymentId            String?
+  iyzicoPaymentTransactionId String?
+
+  // Fatura
+  invoiceNumber String? @unique
+  invoiceUrl    String?
+
+  description   String?
+  paidAt        DateTime?
+  failureReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([businessId])
+  @@index([subscriptionId])
+}
+
+// ============================================
+// MENÜ YÖNETİMİ
+// ============================================
+
+model Category {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+  imageUrl    String?
+  sortOrder   Int     @default(0)
+  isActive    Boolean @default(true)
+
+  products     Product[]
+  translations CategoryTranslation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([businessId, sortOrder])
+}
+
+model Product {
+  id         String   @id @default(cuid())
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  businessId String
+
+  // Temel bilgiler
+  name        String
+  description String?
+  price       Decimal  @db.Decimal(10, 2)
+  imageUrl    String?
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+
+  // Detay alanları (Profesyonel+ paketler)
+  ingredients     String?
+  allergens       String[] @default([])
+  calories        Int?
+  preparationTime Int?
+  badges          String[] @default([])
+
+  translations ProductTranslation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([businessId])
+  @@index([categoryId, sortOrder])
+}
+
+// ============================================
+// ÇOKLU DİL SİSTEMİ
+// ============================================
+
+model BusinessLanguage {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  languageCode String
+  languageName String
+  isActive     Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([businessId, languageCode])
+}
+
+model CategoryTranslation {
+  id         String   @id @default(cuid())
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  languageCode     String
+  name             String
+  description      String?
+  isAutoTranslated Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([categoryId, languageCode])
+}
+
+model ProductTranslation {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  languageCode     String
+  name             String
+  description      String?
+  ingredients      String?
+  isAutoTranslated Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([productId, languageCode])
+}
