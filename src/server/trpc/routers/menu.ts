@@ -52,6 +52,7 @@ export const menuRouter = router({
           fontFamily: business.fontFamily,
           menuTemplate: business.menuTemplate,
           defaultLanguage: business.defaultLanguage,
+          timezone: business.timezone,
         },
         categories: business.categories,
         languages: business.languages,

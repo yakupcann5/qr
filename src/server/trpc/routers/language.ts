@@ -1,6 +1,10 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod/v4";
-import { router, businessProcedure } from "../trpc";
+import {
+  router,
+  businessProcedure,
+  assertBusinessAccess,
+} from "../trpc";
 import { addLanguageSchema, removeLanguageSchema } from "@/lib/validators/language";
 import { translationService } from "@/server/services/translation.service";
 
@@ -8,6 +12,8 @@ export const languageRouter = router({
   list: businessProcedure
     .input(z.object({ businessId: z.string() }))
     .query(async ({ ctx, input }) => {
+      assertBusinessAccess(ctx.session.user.businessId, input.businessId);
+
       return ctx.db.businessLanguage.findMany({
         where: { businessId: input.businessId },
         orderBy: { createdAt: "asc" },
@@ -17,6 +23,8 @@ export const languageRouter = router({
   add: businessProcedure
     .input(addLanguageSchema)
     .mutation(async ({ ctx, input }) => {
+      assertBusinessAccess(ctx.session.user.businessId, input.businessId);
+
       // Check plan limit
       const subscription = await ctx.db.subscription.findUnique({
         where: { businessId: input.businessId },
@@ -51,6 +59,16 @@ export const languageRouter = router({
   remove: businessProcedure
     .input(removeLanguageSchema)
     .mutation(async ({ ctx, input }) => {
+      assertBusinessAccess(ctx.session.user.businessId, input.businessId);
+
+      const language = await ctx.db.businessLanguage.findUnique({
+        where: { id: input.id },
+        select: { businessId: true },
+      });
+      if (!language || language.businessId !== ctx.session.user.businessId) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Dil bulunamadı." });
+      }
+
       return ctx.db.businessLanguage.update({
         where: { id: input.id },
         data: { isActive: false },
@@ -60,6 +78,8 @@ export const languageRouter = router({
   getTranslations: businessProcedure
     .input(z.object({ businessId: z.string(), languageCode: z.string() }))
     .query(async ({ ctx, input }) => {
+      assertBusinessAccess(ctx.session.user.businessId, input.businessId);
+
       const [categories, products] = await Promise.all([
         ctx.db.categoryTranslation.findMany({
           where: {
@@ -89,6 +109,17 @@ export const languageRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      const translation = await ctx.db.categoryTranslation.findUnique({
+        where: { id: input.id },
+        include: { category: { select: { businessId: true } } },
+      });
+      if (
+        !translation ||
+        translation.category.businessId !== ctx.session.user.businessId
+      ) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Çeviri bulunamadı." });
+      }
+
       const { id, ...data } = input;
       return ctx.db.categoryTranslation.update({
         where: { id },
@@ -106,6 +137,17 @@ export const languageRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      const translation = await ctx.db.productTranslation.findUnique({
+        where: { id: input.id },
+        include: { product: { select: { businessId: true } } },
+      });
+      if (
+        !translation ||
+        translation.product.businessId !== ctx.session.user.businessId
+      ) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Çeviri bulunamadı." });
+      }
+
       const { id, ...data } = input;
       return ctx.db.productTranslation.update({
         where: { id },
@@ -113,6 +155,29 @@ export const languageRouter = router({
       });
     }),
 });
+
+/** Process items in chunks with parallel execution. */
+async function processInChunks<T>(
+  items: T[],
+  chunkSize: number,
+  processor: (item: T) => Promise<void>
+): Promise<{ succeeded: number; failed: number }> {
+  let succeeded = 0;
+  let failed = 0;
+
+  for (let i = 0; i < items.length; i += chunkSize) {
+    const chunk = items.slice(i, i + chunkSize);
+    const results = await Promise.allSettled(
+      chunk.map((item) => processor(item))
+    );
+    for (const r of results) {
+      if (r.status === "fulfilled") succeeded++;
+      else failed++;
+    }
+  }
+
+  return { succeeded, failed };
+}
 
 async function autoTranslateAll(
   db: typeof import("@/server/db").db,
@@ -126,25 +191,21 @@ async function autoTranslateAll(
 
   if (!business) return;
 
-  // Translate categories
+  const CHUNK_SIZE = 10;
+
+  // Translate categories (chunked)
   const categories = await db.category.findMany({
     where: { businessId },
     select: { id: true, name: true, description: true },
   });
 
-  for (const cat of categories) {
-    const nameResult = await translationService.translate(
-      cat.name,
+  await processInChunks(categories, CHUNK_SIZE, async (cat) => {
+    const texts = [cat.name, ...(cat.description ? [cat.description] : [])];
+    const results = await translationService.translateBatch(
+      texts,
       languageCode,
       business.defaultLanguage
     );
-    const descResult = cat.description
-      ? await translationService.translate(
-          cat.description,
-          languageCode,
-          business.defaultLanguage
-        )
-      : null;
 
     await db.categoryTranslation.upsert({
       where: {
@@ -153,39 +214,39 @@ async function autoTranslateAll(
       create: {
         categoryId: cat.id,
         languageCode,
-        name: nameResult.translatedText,
-        description: descResult?.translatedText ?? null,
+        name: results[0].translatedText,
+        description: cat.description ? (results[1]?.translatedText ?? null) : null,
         isAutoTranslated: true,
       },
       update: {},
     });
-  }
+  });
 
-  // Translate products
+  // Translate products (chunked)
   const products = await db.product.findMany({
     where: { businessId },
     select: { id: true, name: true, description: true, ingredients: true },
   });
 
-  for (const prod of products) {
-    const nameResult = await translationService.translate(
+  await processInChunks(products, CHUNK_SIZE, async (prod) => {
+    const texts = [
       prod.name,
+      ...(prod.description ? [prod.description] : []),
+      ...(prod.ingredients ? [prod.ingredients] : []),
+    ];
+    const results = await translationService.translateBatch(
+      texts,
       languageCode,
       business.defaultLanguage
     );
-    const descResult = prod.description
-      ? await translationService.translate(
-          prod.description,
-          languageCode,
-          business.defaultLanguage
-        )
+
+    let idx = 0;
+    const translatedName = results[idx++]?.translatedText ?? prod.name;
+    const translatedDesc = prod.description
+      ? (results[idx++]?.translatedText ?? null)
       : null;
-    const ingredResult = prod.ingredients
-      ? await translationService.translate(
-          prod.ingredients,
-          languageCode,
-          business.defaultLanguage
-        )
+    const translatedIngred = prod.ingredients
+      ? (results[idx]?.translatedText ?? null)
       : null;
 
     await db.productTranslation.upsert({
@@ -195,12 +256,12 @@ async function autoTranslateAll(
       create: {
         productId: prod.id,
         languageCode,
-        name: nameResult.translatedText,
-        description: descResult?.translatedText ?? null,
-        ingredients: ingredResult?.translatedText ?? null,
+        name: translatedName,
+        description: translatedDesc,
+        ingredients: translatedIngred,
         isAutoTranslated: true,
       },
       update: {},
     });
-  }
+  });
 }

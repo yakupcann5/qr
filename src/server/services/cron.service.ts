@@ -16,28 +16,56 @@ export const cronService = {
     });
 
     for (const sub of expiringTrials) {
+      // Skip if no card token
+      if (!sub.iyzicoCardToken || !sub.iyzicoCardUserKey) {
+        await subscriptionService.enterGracePeriod(sub.id);
+        continue;
+      }
+
+      // Idempotency: skip if already charged in last 24h
+      const recentPayment = await db.payment.findFirst({
+        where: {
+          subscriptionId: sub.id,
+          status: "SUCCESS",
+          createdAt: { gte: subDays(now, 1) },
+        },
+      });
+      if (recentPayment) continue;
+
       const result = await paymentService.charge({
-        cardToken: sub.iyzicoCardToken ?? "",
-        cardUserKey: sub.iyzicoCardUserKey ?? "",
+        cardToken: sub.iyzicoCardToken,
+        cardUserKey: sub.iyzicoCardUserKey,
         amount: Number(sub.plan.price),
         description: `${sub.plan.name} paketi — ilk ödeme`,
         businessId: sub.businessId,
         subscriptionId: sub.id,
       });
 
-      await paymentService.recordPayment({
-        businessId: sub.businessId,
-        subscriptionId: sub.id,
-        amount: Number(sub.plan.price),
-        status: result.success ? "SUCCESS" : "FAILED",
-        iyzicoPaymentId: result.paymentId,
-        description: `${sub.plan.name} paketi — deneme sonrası ilk ödeme`,
-        failureReason: result.error,
-      });
-
       if (result.success) {
-        await subscriptionService.activate(sub.id);
+        await db.$transaction(async (tx) => {
+          await paymentService.recordPayment(
+            {
+              businessId: sub.businessId,
+              subscriptionId: sub.id,
+              amount: Number(sub.plan.price),
+              status: "SUCCESS",
+              iyzicoPaymentId: result.paymentId,
+              description: `${sub.plan.name} paketi — deneme sonrası ilk ödeme`,
+            },
+            tx
+          );
+          await subscriptionService.activate(sub.id, tx);
+        });
       } else {
+        await paymentService.recordPayment({
+          businessId: sub.businessId,
+          subscriptionId: sub.id,
+          amount: Number(sub.plan.price),
+          status: "FAILED",
+          iyzicoPaymentId: result.paymentId,
+          description: `${sub.plan.name} paketi — deneme sonrası ilk ödeme`,
+          failureReason: result.error,
+        });
         await subscriptionService.enterGracePeriod(sub.id);
       }
     }
@@ -49,28 +77,56 @@ export const cronService = {
     });
 
     for (const sub of expiringActive) {
-      const result = await paymentService.charge({
-        cardToken: sub.iyzicoCardToken ?? "",
-        cardUserKey: sub.iyzicoCardUserKey ?? "",
-        amount: Number(sub.plan.price),
-        description: `${sub.plan.name} paketi — yenileme`,
-        businessId: sub.businessId,
-        subscriptionId: sub.id,
-      });
+      // Skip if no card token
+      if (!sub.iyzicoCardToken || !sub.iyzicoCardUserKey) {
+        await subscriptionService.enterGracePeriod(sub.id);
+        continue;
+      }
 
-      await paymentService.recordPayment({
+      // Idempotency: skip if already charged in last 24h
+      const recentPayment = await db.payment.findFirst({
+        where: {
+          subscriptionId: sub.id,
+          status: "SUCCESS",
+          createdAt: { gte: subDays(now, 1) },
+        },
+      });
+      if (recentPayment) continue;
+
+      const result = await paymentService.charge({
+        cardToken: sub.iyzicoCardToken,
+        cardUserKey: sub.iyzicoCardUserKey,
+        amount: Number(sub.plan.price),
+        description: `${sub.plan.name} paketi — yenileme`,
         businessId: sub.businessId,
         subscriptionId: sub.id,
-        amount: Number(sub.plan.price),
-        status: result.success ? "SUCCESS" : "FAILED",
-        iyzicoPaymentId: result.paymentId,
-        description: `${sub.plan.name} paketi — yenileme`,
-        failureReason: result.error,
       });
 
       if (result.success) {
-        await subscriptionService.activate(sub.id);
+        await db.$transaction(async (tx) => {
+          await paymentService.recordPayment(
+            {
+              businessId: sub.businessId,
+              subscriptionId: sub.id,
+              amount: Number(sub.plan.price),
+              status: "SUCCESS",
+              iyzicoPaymentId: result.paymentId,
+              description: `${sub.plan.name} paketi — yenileme`,
+            },
+            tx
+          );
+          await subscriptionService.activate(sub.id, tx);
+        });
       } else {
+        await paymentService.recordPayment({
+          businessId: sub.businessId,
+          subscriptionId: sub.id,
+          amount: Number(sub.plan.price),
+          status: "FAILED",
+          iyzicoPaymentId: result.paymentId,
+          description: `${sub.plan.name} paketi — yenileme`,
+          failureReason: result.error,
+        });
         await subscriptionService.enterGracePeriod(sub.id);
       }
     }

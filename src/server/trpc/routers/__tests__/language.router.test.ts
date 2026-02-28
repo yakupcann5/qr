@@ -8,6 +8,9 @@ vi.mock("@/server/services/translation.service", () => ({
       translatedText: "Translated",
       isAutoTranslated: true,
     }),
+    translateBatch: vi.fn().mockResolvedValue([
+      { translatedText: "Translated", isAutoTranslated: true },
+    ]),
   },
 }));
 
@@ -180,6 +183,10 @@ describe("languageRouter", () => {
 
   describe("updateCategoryTranslation", () => {
     it("updates translation and sets isAutoTranslated=false", async () => {
+      mockDb.categoryTranslation.findUnique.mockResolvedValueOnce({
+        id: "ct1",
+        category: { businessId: "biz-1" },
+      } as never);
       mockDb.categoryTranslation.update.mockResolvedValueOnce({
         id: "ct1",
         name: "Updated",
@@ -197,6 +204,10 @@ describe("languageRouter", () => {
 
   describe("updateProductTranslation", () => {
     it("updates product translation", async () => {
+      mockDb.productTranslation.findUnique.mockResolvedValueOnce({
+        id: "pt1",
+        product: { businessId: "biz-1" },
+      } as never);
       mockDb.productTranslation.update.mockResolvedValueOnce({
         id: "pt1",
         name: "Updated Product",
@@ -214,6 +225,10 @@ describe("languageRouter", () => {
 
   describe("remove", () => {
     it("deactivates language", async () => {
+      mockDb.businessLanguage.findUnique.mockResolvedValueOnce({
+        id: "l1",
+        businessId: "biz-1",
+      } as never);
       mockDb.businessLanguage.update.mockResolvedValueOnce({
         id: "l1",
         isActive: false,

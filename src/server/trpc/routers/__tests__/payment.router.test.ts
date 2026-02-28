@@ -57,6 +57,7 @@ describe("paymentRouter", () => {
       mockDb.payment.findUnique.mockResolvedValueOnce({
         id: "pay-1",
         amount: 1999,
+        businessId: "biz-1",
       } as never);
 
       const caller = createCaller(makeCtx(mockBusinessSession));

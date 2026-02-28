@@ -1,5 +1,9 @@
 import { TRPCError } from "@trpc/server";
-import { router, businessProcedure } from "../trpc";
+import {
+  router,
+  businessProcedure,
+  assertBusinessAccess,
+} from "../trpc";
 import { subscriptionService } from "@/server/services/subscription.service";
 import {
   upgradePlanSchema,
@@ -40,6 +44,8 @@ export const subscriptionRouter = router({
   activateEarly: businessProcedure
     .input(activateEarlySchema)
     .mutation(async ({ ctx, input }) => {
+      assertBusinessAccess(ctx.session.user.businessId, input.businessId);
+
       const subscription = await ctx.db.subscription.findUnique({
         where: { businessId: input.businessId },
       });
@@ -57,7 +63,9 @@ export const subscriptionRouter = router({
 
   requestDowngrade: businessProcedure
     .input(downgradePlanSchema)
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      assertBusinessAccess(ctx.session.user.businessId, input.businessId);
+
       await subscriptionService.requestDowngrade(
         input.businessId,
         input.newPlanId
@@ -70,7 +78,9 @@ export const subscriptionRouter = router({
 
   cancelDowngrade: businessProcedure
     .input(cancelSubscriptionSchema)
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      assertBusinessAccess(ctx.session.user.businessId, input.businessId);
+
       await subscriptionService.cancelDowngrade(input.businessId);
       return {
         success: true,
@@ -80,7 +90,9 @@ export const subscriptionRouter = router({
 
   cancel: businessProcedure
     .input(cancelSubscriptionSchema)
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      assertBusinessAccess(ctx.session.user.businessId, input.businessId);
+
       await subscriptionService.cancel(input.businessId);
       return {
         success: true,

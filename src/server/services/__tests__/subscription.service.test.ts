@@ -102,16 +102,19 @@ describe("subscriptionService", () => {
       ).mockResolvedValueOnce({
         id: "sub-1",
         planId: "plan-1",
+        businessId: "biz-1",
         status: "TRIAL",
       });
 
       const txUpdate = vi.fn().mockResolvedValueOnce({});
+      const txBizUpdate = vi.fn().mockResolvedValueOnce({});
       const txHistoryCreate = vi.fn().mockResolvedValueOnce({});
 
       (db.$transaction as ReturnType<typeof vi.fn>).mockImplementation(
         async (fn: (tx: unknown) => Promise<unknown>) => {
           return fn({
             subscription: { update: txUpdate },
+            business: { update: txBizUpdate },
             subscriptionHistory: { create: txHistoryCreate },
           });
         }

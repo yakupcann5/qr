@@ -11,6 +11,7 @@ import { subscriptionRouter } from "./routers/subscription";
 import { paymentRouter } from "./routers/payment";
 import { planRouter } from "./routers/plan";
 import { adminRouter } from "./routers/admin";
+import { blogRouter } from "./routers/blog";
 
 export const appRouter = router({
   auth: authRouter,
@@ -25,6 +26,7 @@ export const appRouter = router({
   payment: paymentRouter,
   plan: planRouter,
   admin: adminRouter,
+  blog: blogRouter,
 });
 
 export type AppRouter = typeof appRouter;

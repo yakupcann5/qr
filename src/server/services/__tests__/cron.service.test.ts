@@ -31,7 +31,7 @@ const mockDb = vi.mocked(db);
 
 beforeEach(() => {
   mockReset(mockDb);
-  vi.clearAllMocks();
+  vi.resetAllMocks();
 });
 
 describe("cronService", () => {
@@ -51,6 +51,8 @@ describe("cronService", () => {
         .mockResolvedValueOnce([] as never) // expiringActive
         .mockResolvedValueOnce([] as never); // expiringGrace
 
+      mockDb.payment.findFirst.mockResolvedValueOnce(null as never);
+
       vi.mocked(paymentService.charge).mockResolvedValueOnce({
         success: true,
         paymentId: "pay-1",
@@ -58,10 +60,14 @@ describe("cronService", () => {
       vi.mocked(paymentService.recordPayment).mockResolvedValueOnce(undefined as never);
       vi.mocked(subscriptionService.activate).mockResolvedValueOnce(undefined as never);
 
+      mockDb.$transaction.mockImplementationOnce(
+        async (fn: (tx: unknown) => Promise<unknown>) => fn(mockDb)
+      );
+
       const result = await cronService.processExpiringSubscriptions();
 
       expect(result.trialsProcessed).toBe(1);
-      expect(subscriptionService.activate).toHaveBeenCalledWith("sub-1");
+      expect(subscriptionService.activate).toHaveBeenCalledWith("sub-1", mockDb);
     });
 
     it("enters grace period when trial charge fails", async () => {
@@ -107,6 +113,8 @@ describe("cronService", () => {
         ] as never)
         .mockResolvedValueOnce([] as never);
 
+      mockDb.payment.findFirst.mockResolvedValueOnce(null as never);
+
       vi.mocked(paymentService.charge).mockResolvedValueOnce({
         success: true,
         paymentId: "pay-3",
@@ -114,10 +122,14 @@ describe("cronService", () => {
       vi.mocked(paymentService.recordPayment).mockResolvedValueOnce(undefined as never);
       vi.mocked(subscriptionService.activate).mockResolvedValueOnce(undefined as never);
 
+      mockDb.$transaction.mockImplementationOnce(
+        async (fn: (tx: unknown) => Promise<unknown>) => fn(mockDb)
+      );
+
       const result = await cronService.processExpiringSubscriptions();
 
       expect(result.renewalsProcessed).toBe(1);
-      expect(subscriptionService.activate).toHaveBeenCalledWith("sub-3");
+      expect(subscriptionService.activate).toHaveBeenCalledWith("sub-3", mockDb);
     });
 
     it("expires grace period subscriptions", async () => {

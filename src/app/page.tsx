@@ -1,65 +1,172 @@
-import Image from "next/image";
+import type { Metadata } from "next";
+import { Navbar } from "@/components/landing/navbar";
+import { Hero } from "@/components/landing/hero";
+import { Stats } from "@/components/landing/stats";
+import { Features } from "@/components/landing/features";
+import { TemplateGallery } from "@/components/landing/template-gallery";
+import { Pricing } from "@/components/landing/pricing";
+import { Testimonials } from "@/components/landing/testimonials";
+import { Faq } from "@/components/landing/faq";
+import { CtaBanner } from "@/components/landing/cta-banner";
+import { Footer } from "@/components/landing/footer";
+
+export const metadata: Metadata = {
+  title: "QR Menü — Dijital Menü Platformu | Kafe ve Restoran İçin QR Kod Menü",
+  description:
+    "Kafe, restoran ve işletmeler için QR kod tabanlı dijital menü çözümü. 14 gün ücretsiz deneyin. Kolay yönetim, çoklu dil desteği, 9+ özelleştirilebilir şablon. Kredi kartı gerekmez.",
+  keywords: [
+    "qr menü",
+    "dijital menü",
+    "karekod menü",
+    "restoran qr menü",
+    "kafe dijital menü",
+    "online menü",
+    "qr kod menü",
+    "qr menü fiyatları",
+    "dijital menü sistemi",
+    "restoran menü yazılımı",
+  ],
+  openGraph: {
+    title: "QR Menü — Dijital Menü Platformu",
+    description:
+      "Dakikalar içinde profesyonel dijital menünüzü oluşturun. 14 gün ücretsiz, kredi kartı gerekmez.",
+    type: "website",
+    locale: "tr_TR",
+    siteName: "QR Menü",
+  },
+};
+
+function safeJsonLd(data: unknown): string {
+  return JSON.stringify(data).replace(/<\//g, "<\\/");
+}
+
+const FAQ_SCHEMA_ITEMS = [
+  {
+    question: "QR menü nedir ve nasıl çalışır?",
+    answer:
+      "QR menü, restoranınızın veya kafenizin menüsünü dijital ortama taşıyan bir çözümdür. Müşterileriniz masadaki QR kodu telefonlarıyla okutarak menünüzü anında görüntüleyebilir — herhangi bir uygulama indirmeye gerek yoktur.",
+  },
+  {
+    question: "14 günlük deneme süresi nasıl işliyor?",
+    answer:
+      "Kayıt olduktan sonra 14 gün boyunca tüm Profesyonel plan özelliklerini ücretsiz kullanabilirsiniz. Kredi kartı bilgisi gerekmez.",
+  },
+  {
+    question: "Menümü ne sıklıkla güncelleyebilirim?",
+    answer:
+      "Sınırsız güncelleme yapabilirsiniz. Fiyat değişiklikleri, yeni ürün ekleme, kategori düzenleme — hepsi anında menünüze yansır. QR kodunuz her zaman aynı kalır.",
+  },
+  {
+    question: "Çoklu dil desteği nasıl çalışıyor?",
+    answer:
+      "Menünüzü Google Translate API ile otomatik olarak 15+ dile çevirebilirsiniz. Misafirin telefon dili otomatik algılanarak uygun çeviri gösterilir.",
+  },
+  {
+    question: "Hangi ödeme yöntemlerini kabul ediyorsunuz?",
+    answer:
+      "iyzico altyapısı ile tüm banka kartları ve kredi kartlarını güvenle kabul ediyoruz. Kart bilgileriniz bizde saklanmaz.",
+  },
+  {
+    question: "KVKK ve veri güvenliği konusunda ne tür önlemler alıyorsunuz?",
+    answer:
+      "KVKK mevzuatına tam uyum sağlıyoruz. Açık rıza yönetimi, çerez bildirimi, veri silme talebi işleme ve kişisel veri koruma politikamız mevcuttur.",
+  },
+  {
+    question: "Paketimi yükseltebilir veya düşürebilir miyim?",
+    answer:
+      "Evet, istediğiniz zaman paket değişikliği yapabilirsiniz. Yükseltme anında aktif olur, düşürme mevcut dönem sonunda geçerli olur.",
+  },
+  {
+    question: "Alerjen bilgilerini menüde gösterebilir miyim?",
+    answer:
+      "Evet, Profesyonel ve Premium paketlerde 14 farklı alerjen türünü ürünlerinize ekleyebilirsiniz. Alerjenler menüde görsel etiketlerle gösterilir.",
+  },
+];
+
+function StructuredDataSchemas() {
+  const nextYear = new Date(new Date().getFullYear() + 1, 11, 31)
+    .toISOString()
+    .split("T")[0];
+
+  const softwareAppSchema = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: "QR Menü",
+    applicationCategory: "BusinessApplication",
+    operatingSystem: "Web",
+    description:
+      "Kafe, restoran ve işletmeler için QR kod tabanlı dijital menü çözümü.",
+    offers: [
+      {
+        "@type": "Offer",
+        name: "Başlangıç",
+        price: "149",
+        priceCurrency: "TRY",
+        priceValidUntil: nextYear,
+        availability: "https://schema.org/InStock",
+      },
+      {
+        "@type": "Offer",
+        name: "Profesyonel",
+        price: "299",
+        priceCurrency: "TRY",
+        priceValidUntil: nextYear,
+        availability: "https://schema.org/InStock",
+      },
+      {
+        "@type": "Offer",
+        name: "Premium",
+        price: "499",
+        priceCurrency: "TRY",
+        priceValidUntil: nextYear,
+        availability: "https://schema.org/InStock",
+      },
+    ],
+  };
+
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: FAQ_SCHEMA_ITEMS.map((item) => ({
+      "@type": "Question",
+      name: item.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: item.answer,
+      },
+    })),
+  };
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(softwareAppSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(faqSchema) }}
+      />
+    </>
+  );
+}
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+    <>
+      <StructuredDataSchemas />
+      <Navbar />
+      <main>
+        <Hero />
+        <Stats />
+        <Features />
+        <TemplateGallery />
+        <Pricing />
+        <Testimonials />
+        <Faq />
+        <CtaBanner />
       </main>
-    </div>
+      <Footer />
+    </>
   );
 }

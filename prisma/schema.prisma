@@ -94,6 +94,7 @@ model Business {
   // Menü ayarları
   defaultLanguage String  @default("tr")
   menuTemplate    String  @default("classic")
+  timezone        String  @default("Europe/Istanbul")
   isActive        Boolean @default(true)
 
   // Branding ayarları
@@ -254,6 +255,11 @@ model Product {
   imageUrl    String?
   sortOrder   Int      @default(0)
   isActive    Boolean  @default(true)
+  isSoldOut   Boolean  @default(false)
+
+  // Zaman bazlı menü (ör. kahvaltı 08:00-11:00)
+  availableFrom DateTime? @db.Time()
+  availableTo   DateTime? @db.Time()
 
   // Detay alanları (Profesyonel+ paketler)
   ingredients     String?
@@ -321,4 +327,30 @@ model ProductTranslation {
   updatedAt DateTime @updatedAt
 
   @@unique([productId, languageCode])
+}
+
+// ============================================
+// BLOG
+// ============================================
+
+model BlogPost {
+  id     String @id @default(cuid())
+  slug   String @unique
+  title  String
+  excerpt String?
+  content String // Markdown content
+  coverImage String?
+
+  author   String  @default("QR Menü")
+  tags     String[] @default([])
+
+  isPublished Boolean @default(false)
+  publishedAt DateTime?
+
+  // SEO
+  metaTitle       String?
+  metaDescription String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

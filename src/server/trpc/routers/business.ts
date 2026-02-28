@@ -2,6 +2,8 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod/v4";
 import { router, businessProcedure } from "../trpc";
 import { updateBusinessSchema, deleteBusinessSchema } from "@/lib/validators/business";
+import { changePasswordSchema } from "@/lib/validators/auth";
+import { authService } from "@/server/services/auth.service";
 
 export const businessRouter = router({
   get: businessProcedure.query(async ({ ctx }) => {
@@ -17,6 +19,24 @@ export const businessRouter = router({
         languages: { where: { isActive: true } },
       },
     });
+  }),
+
+  stats: businessProcedure.query(async ({ ctx }) => {
+    const businessId = ctx.session.user.businessId;
+    if (!businessId) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "İşletme bulunamadı." });
+    }
+
+    const [categoryCount, productCount] = await Promise.all([
+      ctx.db.category.count({
+        where: { businessId, isActive: true },
+      }),
+      ctx.db.product.count({
+        where: { category: { businessId }, isActive: true },
+      }),
+    ]);
+
+    return { categoryCount, productCount };
   }),
 
   update: businessProcedure
@@ -60,5 +80,16 @@ export const businessRouter = router({
         success: true,
         message: "Hesabınız silindi. Verileriniz 30 gün içinde kalıcı olarak silinecektir.",
       };
+    }),
+
+  changePassword: businessProcedure
+    .input(changePasswordSchema)
+    .mutation(async ({ ctx, input }) => {
+      await authService.changePassword(
+        ctx.session.user.id,
+        input.currentPassword,
+        input.newPassword
+      );
+      return { success: true, message: "Şifreniz başarıyla değiştirildi." };
     }),
 });

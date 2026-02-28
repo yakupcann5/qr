@@ -1,4 +1,4 @@
-import { db } from "@/server/db";
+import { db, type TransactionClient } from "@/server/db";
 import { type PaymentStatus } from "@prisma/client";
 
 interface ChargeResult {
@@ -70,17 +70,21 @@ export const paymentService = {
     };
   },
 
-  async recordPayment(data: {
-    businessId: string;
-    subscriptionId: string;
-    amount: number;
-    status: PaymentStatus;
-    iyzicoPaymentId?: string;
-    iyzicoPaymentTransactionId?: string;
-    description?: string;
-    failureReason?: string;
-  }) {
-    return db.payment.create({
+  async recordPayment(
+    data: {
+      businessId: string;
+      subscriptionId: string;
+      amount: number;
+      status: PaymentStatus;
+      iyzicoPaymentId?: string;
+      iyzicoPaymentTransactionId?: string;
+      description?: string;
+      failureReason?: string;
+    },
+    tx?: TransactionClient
+  ) {
+    const client = tx ?? db;
+    return client.payment.create({
       data: {
         businessId: data.businessId,
         subscriptionId: data.subscriptionId,

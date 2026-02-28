@@ -1,6 +1,11 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod/v4";
-import { router, businessProcedure } from "../trpc";
+import {
+  router,
+  businessProcedure,
+  assertBusinessAccess,
+  assertEntityOwnership,
+} from "../trpc";
 
 export const paymentRouter = router({
   list: businessProcedure
@@ -12,6 +17,8 @@ export const paymentRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
+      assertBusinessAccess(ctx.session.user.businessId, input.businessId);
+
       const skip = (input.page - 1) * input.limit;
 
       const [payments, total] = await Promise.all([
@@ -44,9 +51,7 @@ export const paymentRouter = router({
         where: { id: input.id },
       });
 
-      if (!payment) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Ödeme bulunamadı." });
-      }
+      assertEntityOwnership(payment, ctx.session.user.businessId);
 
       return payment;
     }),

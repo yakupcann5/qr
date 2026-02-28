@@ -137,7 +137,7 @@ Required in `.env`:
 - `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` — Images
 - `RESEND_API_KEY` — Email
 - `GOOGLE_TRANSLATE_API_KEY` — Translation
-- `SENTRY_DSN` — Error tracking
+- `NEXT_PUBLIC_SENTRY_DSN` — Error tracking
 - `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` — Rate limiting
 - `CRON_SECRET` — Cron job auth
 - `NEXT_PUBLIC_APP_URL` — Public app URL

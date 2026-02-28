@@ -44,7 +44,17 @@ export const FONT_FAMILIES = [
 
 // Menü template'leri
 export const MENU_TEMPLATES = [
-  { value: "classic", label: "Klasik" },
+  { value: "classic", label: "Klasik", tier: "starter" },
+  { value: "professional", label: "Profesyonel", tier: "pro" },
+  { value: "grid", label: "Grid", tier: "pro" },
+  { value: "accordion", label: "Accordion", tier: "pro" },
+  { value: "premium", label: "Premium", tier: "premium" },
+  { value: "cafe", label: "Kafe", tier: "premium" },
+  { value: "bar", label: "Bar & Kokteyl", tier: "premium" },
+  { value: "breakfast", label: "Kahvaltı", tier: "premium" },
+  { value: "italian", label: "İtalyan", tier: "premium" },
+  { value: "sushi", label: "Sushi & Japon", tier: "premium" },
+  { value: "burger", label: "Burger & Sokak", tier: "premium" },
 ] as const;
 
 // Ürün badge'leri

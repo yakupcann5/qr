@@ -1,12 +1,36 @@
+import { createHmac } from "crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { db } from "@/server/db";
 
+function verifyIyzicoSignature(
+  rawBody: string,
+  signatureHeader: string | null
+): boolean {
+  const secretKey = process.env.IYZICO_SECRET_KEY;
+  if (!secretKey || !signatureHeader) return false;
+
+  const expectedSignature = createHmac("sha256", secretKey)
+    .update(rawBody)
+    .digest("base64");
+
+  return signatureHeader === expectedSignature;
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const rawBody = await req.text();
 
-    // TODO: iyzico webhook signature verification
-    // iyzico webhook'tan gelen verileri doğrula
+    // Verify webhook signature
+    const signature = req.headers.get("x-iyzico-signature");
+    if (!verifyIyzicoSignature(rawBody, signature)) {
+      console.warn("[Webhook] iyzico imza doğrulaması başarısız.");
+      return NextResponse.json(
+        { error: "Invalid signature" },
+        { status: 401 }
+      );
+    }
+
+    const body = JSON.parse(rawBody);
 
     const { paymentId, status, merchantPaymentId } = body;
 

@@ -6,6 +6,10 @@ function createRedisClient(): Redis | null {
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
 
   if (!url || !token) {
+    console.warn(
+      "[rate-limit] UPSTASH_REDIS_REST_URL veya UPSTASH_REDIS_REST_TOKEN eksik. " +
+        "Rate limiting devre dışı — brute force koruması çalışmıyor!"
+    );
     return null;
   }
 

@@ -44,6 +44,7 @@ describe("categoryRouter", () => {
       mockDb.category.findUnique.mockResolvedValueOnce({
         id: "cat-1",
         name: "Test",
+        businessId: "biz-1",
       } as never);
 
       const caller = createCaller(makeCtx(mockBusinessSession));
@@ -94,6 +95,9 @@ describe("categoryRouter", () => {
 
   describe("update", () => {
     it("updates category", async () => {
+      mockDb.category.findUnique.mockResolvedValueOnce({
+        businessId: "biz-1",
+      } as never);
       mockDb.category.update.mockResolvedValueOnce({
         id: "cat-1",
         name: "Updated",
@@ -107,6 +111,10 @@ describe("categoryRouter", () => {
 
   describe("reorder", () => {
     it("updates sortOrder via transaction", async () => {
+      mockDb.category.findMany.mockResolvedValueOnce([
+        { businessId: "biz-1" },
+        { businessId: "biz-1" },
+      ] as never);
       mockDb.$transaction.mockResolvedValueOnce([{}, {}] as never);
 
       const caller = createCaller(makeCtx(mockBusinessSession));

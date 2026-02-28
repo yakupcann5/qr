@@ -2,6 +2,7 @@ import { type NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
 import { db } from "@/server/db";
+import { loginRateLimiter } from "@/lib/rate-limit";
 
 export const authOptions: NextAuthOptions = {
   session: {
@@ -23,6 +24,16 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
           throw new Error("Email ve şifre gerekli.");
+        }
+
+        // Rate limit by email
+        if (loginRateLimiter) {
+          const { success } = await loginRateLimiter.limit(credentials.email);
+          if (!success) {
+            throw new Error(
+              "Çok fazla başarısız giriş denemesi. 15 dakika sonra tekrar deneyin."
+            );
+          }
         }
 
         const user = await db.user.findUnique({
@@ -52,6 +63,7 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           role: user.role,
           businessId: user.business?.id ?? null,
+          emailVerified: true, // authorize() already rejects unverified users above
           rememberMe: credentials.rememberMe === "true",
         };
       },
@@ -63,11 +75,16 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.role = user.role;
         token.businessId = user.businessId;
+        token.emailVerified = !!user.emailVerified;
         token.rememberMe = user.rememberMe;
 
-        // Role-based token expiry
+        // Role-based and rememberMe token expiry
         if (user.role === "SUPER_ADMIN") {
           token.exp = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60; // 7 days
+        } else if (user.rememberMe) {
+          token.exp = Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60; // 30 days
+        } else {
+          token.exp = Math.floor(Date.now() / 1000) + 1 * 24 * 60 * 60; // 1 day
         }
       }
       return token;

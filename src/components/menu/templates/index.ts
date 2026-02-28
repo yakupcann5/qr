@@ -1,0 +1,11 @@
+export { ClassicTemplate } from "./classic";
+export { ProfessionalTemplate } from "./professional";
+export { PremiumTemplate } from "./premium";
+export { GridTemplate } from "./grid";
+export { AccordionTemplate } from "./accordion";
+export { CafeTemplate } from "./cafe";
+export { BarTemplate } from "./bar";
+export { BreakfastTemplate } from "./breakfast";
+export { ItalianTemplate } from "./italian";
+export { SushiTemplate } from "./sushi";
+export { BurgerTemplate } from "./burger";

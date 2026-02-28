@@ -1,5 +1,5 @@
 import { addDays, addYears, differenceInDays } from "date-fns";
-import { db } from "@/server/db";
+import { db, type TransactionClient } from "@/server/db";
 import { paymentService } from "./payment.service";
 import { emailService } from "./email.service";
 
@@ -11,15 +11,17 @@ export const subscriptionService = {
     });
   },
 
-  async activate(subscriptionId: string) {
-    const subscription = await db.subscription.findUnique({
+  async activate(subscriptionId: string, externalTx?: TransactionClient) {
+    const client = externalTx ?? db;
+
+    const subscription = await client.subscription.findUnique({
       where: { id: subscriptionId },
       include: { plan: true },
     });
 
     if (!subscription) throw new Error("Abonelik bulunamadı.");
 
-    await db.$transaction(async (tx) => {
+    const doUpdate = async (tx: TransactionClient) => {
       await tx.subscription.update({
         where: { id: subscriptionId },
         data: {
@@ -31,16 +33,34 @@ export const subscriptionService = {
         },
       });
 
+      // Re-activate business if it was deactivated during grace/expired
+      await tx.business.update({
+        where: { id: subscription.businessId },
+        data: { isActive: true },
+      });
+
       await tx.subscriptionHistory.create({
         data: {
           subscriptionId,
           newPlanId: subscription.planId,
           previousStatus: subscription.status,
           newStatus: "ACTIVE",
-          reason: "Abonelik aktifleştirildi",
+          reason:
+            subscription.status === "GRACE_PERIOD"
+              ? "Grace period ödeme başarılı — abonelik yeniden aktifleştirildi"
+              : "Abonelik aktifleştirildi",
         },
       });
-    });
+    };
+
+    // If we're already inside a transaction, use it directly
+    if (externalTx) {
+      await doUpdate(externalTx);
+    } else {
+      await db.$transaction(async (tx) => {
+        await doUpdate(tx);
+      });
+    }
   },
 
   async enterGracePeriod(subscriptionId: string) {

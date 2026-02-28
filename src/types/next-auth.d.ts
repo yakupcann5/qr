@@ -13,6 +13,7 @@ declare module "next-auth" {
   interface User extends DefaultUser {
     role: Role;
     businessId: string | null;
+    emailVerified?: boolean;
     rememberMe?: boolean;
   }
 }
@@ -22,6 +23,7 @@ declare module "next-auth/jwt" {
     id: string;
     role: Role;
     businessId: string | null;
+    emailVerified?: boolean;
     rememberMe?: boolean;
   }
 }

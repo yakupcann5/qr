@@ -23,6 +23,11 @@ export async function middleware(req: NextRequest) {
     if (token.role === "SUPER_ADMIN") {
       return NextResponse.redirect(new URL("/admin", req.url));
     }
+    if (!token.emailVerified) {
+      return NextResponse.redirect(
+        new URL("/login?error=EMAIL_NOT_VERIFIED", req.url)
+      );
+    }
   }
 
   // Public auth routes — redirect authenticated users

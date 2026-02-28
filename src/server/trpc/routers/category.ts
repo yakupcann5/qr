@@ -1,6 +1,11 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod/v4";
-import { router, businessProcedure } from "../trpc";
+import {
+  router,
+  businessProcedure,
+  assertBusinessAccess,
+  assertEntityOwnership,
+} from "../trpc";
 import {
   createCategorySchema,
   updateCategorySchema,
@@ -9,12 +14,22 @@ import {
 
 export const categoryRouter = router({
   list: businessProcedure
-    .input(z.object({ businessId: z.string() }))
+    .input(
+      z.object({
+        businessId: z.string(),
+        productLimit: z.number().int().min(1).max(200).optional().default(200),
+      })
+    )
     .query(async ({ ctx, input }) => {
+      assertBusinessAccess(ctx.session.user.businessId, input.businessId);
+
       return ctx.db.category.findMany({
         where: { businessId: input.businessId },
         include: {
-          products: { orderBy: { sortOrder: "asc" } },
+          products: {
+            orderBy: { sortOrder: "asc" },
+            take: input.productLimit,
+          },
           translations: true,
         },
         orderBy: { sortOrder: "asc" },
@@ -32,9 +47,7 @@ export const categoryRouter = router({
         },
       });
 
-      if (!category) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Kategori bulunamadı." });
-      }
+      assertEntityOwnership(category, ctx.session.user.businessId);
 
       return category;
     }),
@@ -42,6 +55,8 @@ export const categoryRouter = router({
   create: businessProcedure
     .input(createCategorySchema)
     .mutation(async ({ ctx, input }) => {
+      assertBusinessAccess(ctx.session.user.businessId, input.businessId);
+
       const maxOrder = await ctx.db.category.aggregate({
         where: { businessId: input.businessId },
         _max: { sortOrder: true },
@@ -58,6 +73,12 @@ export const categoryRouter = router({
   update: businessProcedure
     .input(updateCategorySchema)
     .mutation(async ({ ctx, input }) => {
+      const category = await ctx.db.category.findUnique({
+        where: { id: input.id },
+        select: { businessId: true },
+      });
+      assertEntityOwnership(category, ctx.session.user.businessId);
+
       const { id, ...data } = input;
       return ctx.db.category.update({ where: { id }, data });
     }),
@@ -65,6 +86,22 @@ export const categoryRouter = router({
   reorder: businessProcedure
     .input(reorderCategoriesSchema)
     .mutation(async ({ ctx, input }) => {
+      assertBusinessAccess(ctx.session.user.businessId, input.businessId);
+
+      const categories = await ctx.db.category.findMany({
+        where: { id: { in: input.orderedIds } },
+        select: { businessId: true },
+      });
+      if (
+        categories.length !== input.orderedIds.length ||
+        categories.some((c) => c.businessId !== ctx.session.user.businessId)
+      ) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Bazı kategoriler size ait değil.",
+        });
+      }
+
       await ctx.db.$transaction(
         input.orderedIds.map((id, index) =>
           ctx.db.category.update({

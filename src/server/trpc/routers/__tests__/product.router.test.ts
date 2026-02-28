@@ -103,18 +103,25 @@ describe("productRouter", () => {
 
   describe("list", () => {
     it("returns products for category", async () => {
+      mockDb.category.findUnique.mockResolvedValueOnce({
+        businessId: "biz-1",
+      } as never);
       mockDb.product.findMany.mockResolvedValueOnce([
         { id: "p1", name: "Latte" },
       ] as never);
+      mockDb.product.count.mockResolvedValueOnce(1);
 
       const caller = createCaller(makeCtx(mockBusinessSession));
       const result = await caller.list({ categoryId: "cat-1" });
-      expect(result).toHaveLength(1);
+      expect(result.products).toHaveLength(1);
     });
   });
 
   describe("update", () => {
     it("updates product", async () => {
+      mockDb.product.findUnique.mockResolvedValueOnce({
+        businessId: "biz-1",
+      } as never);
       mockDb.product.update.mockResolvedValueOnce({
         id: "p1",
         name: "Updated",
@@ -129,6 +136,10 @@ describe("productRouter", () => {
 
   describe("reorder", () => {
     it("reorders products via transaction", async () => {
+      mockDb.product.findMany.mockResolvedValueOnce([
+        { businessId: "biz-1" },
+        { businessId: "biz-1" },
+      ] as never);
       mockDb.$transaction.mockResolvedValueOnce([{}, {}] as never);
 
       const caller = createCaller(makeCtx(mockBusinessSession));

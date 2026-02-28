@@ -8,6 +8,11 @@ export const createProductSchema = z.object({
   price: z.number().min(0, "Fiyat 0'dan küçük olamaz."),
   imageUrl: z.string().url("Geçerli bir URL girin.").optional().nullable(),
 
+  // Stokta yok & zaman bazlı
+  isSoldOut: z.boolean().optional().default(false),
+  availableFrom: z.string().optional().nullable(), // "HH:mm" format
+  availableTo: z.string().optional().nullable(),   // "HH:mm" format
+
   // Detay alanları (Profesyonel+ paketler)
   ingredients: z.string().optional().nullable(),
   allergens: z.array(z.string()).optional().default([]),
@@ -23,7 +28,12 @@ export const updateProductSchema = z.object({
   price: z.number().min(0, "Fiyat 0'dan küçük olamaz.").optional(),
   imageUrl: z.string().url("Geçerli bir URL girin.").optional().nullable(),
   isActive: z.boolean().optional(),
+  isSoldOut: z.boolean().optional(),
   categoryId: z.string().optional(),
+
+  // Zaman bazlı
+  availableFrom: z.string().optional().nullable(),
+  availableTo: z.string().optional().nullable(),
 
   // Detay alanları
   ingredients: z.string().optional().nullable(),

@@ -37,7 +37,14 @@ async function main() {
       hasImages: true,
       hasDetailFields: true,
       hasCustomQR: true,
-      allowedTemplates: ["classic"],
+      allowedTemplates: [
+        "classic",
+        "professional",
+        "premium",
+        "grid",
+        "cafe",
+        "bar",
+      ],
     },
   });
   console.log(`Plan created: ${professional.name}`);
@@ -53,7 +60,19 @@ async function main() {
       hasImages: true,
       hasDetailFields: true,
       hasCustomQR: true,
-      allowedTemplates: ["classic"],
+      allowedTemplates: [
+        "classic",
+        "professional",
+        "premium",
+        "grid",
+        "accordion",
+        "cafe",
+        "bar",
+        "breakfast",
+        "italian",
+        "sushi",
+        "burger",
+      ],
     },
   });
   console.log(`Plan created: ${premium.name}`);
