@@ -1,6 +1,8 @@
 import type { MetadataRoute } from "next";
 import { db } from "@/server/db";
 
+export const dynamic = "force-dynamic";
+
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://qrmenu.com";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
